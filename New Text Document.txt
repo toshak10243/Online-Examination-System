@@ -1,48 +1,95 @@
-<?php
-require_once 'dbConnection.php';
-session_start();
-if(!isset($_SESSION['user']) || $_SESSION['user']['role']!=='admin'){
-  header('Location: login.php'); exit;
-}
-include 'includes/header.php';
-?>
-<div class="card p-4 shadow-sm">
-  <h4 class="mb-3">Exam Results</h4>
-  <div class="row g-2 mb-3">
-    <div class="col-md-4">
-      <select id="filterSubject" class="form-select">
-        <option value="">All Subjects</option>
-        <?php
-          $subs = $pdo->query("SELECT * FROM subjects ORDER BY subject_name")->fetchAll();
-          foreach($subs as $s) echo "<option value='{$s['subject_id']}'>{$s['subject_name']}</option>";
-        ?>
-      </select>
-    </div>
-    <div class="col-md-4">
-      <select id="filterExam" class="form-select"><option value="">All Exams</option></select>
-    </div>
-  </div>
-  <div id="adminResultsContainer">Loading...</div>
-</div>
+-- ==========================================
+-- ONLINE EXAMINATION SYSTEM DATABASE STRUCTURE
+-- ==========================================
 
-<script>
-function loadAdminResults(){
-  const sid = $('#filterSubject').val();
-  const eid = $('#filterExam').val();
-  $('#adminResultsContainer').html('<div class="text-center py-3 text-muted">Loading...</div>');
-  $.get('ajax/loadAdminResults.php', {subject_id:sid, exam_id:eid}, function(html){
-    $('#adminResultsContainer').html(html);
-  });
-}
-$('#filterSubject').change(function(){
-  const sid = $(this).val();
-  $.getJSON('ajax/getExamsBySubject.php', {subject_id:sid}, function(list){
-    $('#filterExam').html('<option value="">All Exams</option>');
-    list.forEach(e=>$('#filterExam').append(`<option value="${e.exam_id}">${e.exam_title}</option>`));
-    loadAdminResults();
-  });
-});
-$('#filterExam').change(loadAdminResults);
-loadAdminResults();
-</script>
-<?php include 'includes/footer.php'; ?>
+-- Step 1: Create Database
+CREATE DATABASE IF NOT EXISTS online_exam CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE online_exam;
+
+-- ==========================================
+-- USERS TABLE (Admin & Students)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS users (
+  user_id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  fullname VARCHAR(255),
+  role ENUM('admin','student') NOT NULL DEFAULT 'student',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert Default Admin & Student (SHA2 Hashed)
+INSERT IGNORE INTO users (username, password, fullname, role) VALUES
+('admin', SHA2('admin123',256), 'Administrator', 'admin'),
+('student', SHA2('student123',256), 'Demo Student', 'student');
+
+-- ==========================================
+-- SUBJECTS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS subjects (
+  subject_id INT AUTO_INCREMENT PRIMARY KEY,
+  subject_name VARCHAR(255) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- QUESTIONS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS questions (
+  question_id INT AUTO_INCREMENT PRIMARY KEY,
+  subject_id INT NOT NULL,
+  question_text TEXT NOT NULL,
+  option_a VARCHAR(500) NOT NULL,
+  option_b VARCHAR(500) NOT NULL,
+  option_c VARCHAR(500) NOT NULL,
+  option_d VARCHAR(500) NOT NULL,
+  correct_option ENUM('A','B','C','D') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- EXAMS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS exams (
+  exam_id INT AUTO_INCREMENT PRIMARY KEY,
+  exam_title VARCHAR(255) NOT NULL,
+  subject_id INT NOT NULL,
+  start_time DATETIME NOT NULL,
+  end_time DATETIME NOT NULL,
+  total_questions INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- EXAM ATTEMPTS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS exam_attempts (
+  attempt_id INT AUTO_INCREMENT PRIMARY KEY,
+  exam_id INT NOT NULL,
+  student_id INT NOT NULL,
+  start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  end_time DATETIME,
+  score INT DEFAULT 0,
+  submitted TINYINT(1) DEFAULT 0,
+  FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- EXAM ANSWERS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS exam_answers (
+  answer_id INT AUTO_INCREMENT PRIMARY KEY,
+  attempt_id INT NOT NULL,
+  question_id INT NOT NULL,
+  chosen_option ENUM('A','B','C','D') DEFAULT NULL,
+  FOREIGN KEY (attempt_id) REFERENCES exam_attempts(attempt_id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(question_id) ON DELETE CASCADE
+);
+
+
+-- ==========================================
+-- DONE ✅
+-- ==========================================

@@ -27,6 +27,7 @@ A complete **Online Examination System** built from scratch using **Core PHP**, 
 ✅ Chart.js Analytics Dashboard  
 ✅ Secure Session Handling  
 
+DATABASE STRUCTURE FOR MYSQL CLIENT CMD
 -- ==========================================
 -- ONLINE EXAMINATION SYSTEM DATABASE STRUCTURE
 -- ==========================================
